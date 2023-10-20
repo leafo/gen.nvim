@@ -19,6 +19,41 @@ local function trim_table(tbl)
     return tbl
 end
 
+-- This generates a context string of the currently visible text in the
+-- specified win_id (or the current window if none is specified)
+-- Format:
+-- filename:start_line-end_line
+-- {visible_lines}
+local function get_context(win_id)
+  if not win_id then
+    win_id = 0
+  end
+
+  local out
+
+  vim.api.nvim_win_call(win_id, function()
+    local filename = vim.fn.expand('%')
+    local first_visible = vim.fn.line('w0')
+    local last_visible = vim.fn.line('w$')
+
+    local visible_lines = vim.api.nvim_buf_get_lines(0, first_visible - 1, last_visible, false)
+    local header = string.format("%s:%d-%d", filename, first_visible, last_visible)
+
+    out = header .. "\n" .. table.concat(visible_lines, '\n')
+  end)
+
+  return out
+end
+
+-- this gets the context for every file in the current set of visible tabs
+local function get_full_context()
+  local contexts = {}
+  for _, win_id in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    table.insert(contexts, get_context(win_id))
+  end
+  return table.concat(contexts, '\n'), #contexts
+end
+
 local function get_window_options()
 
     local width = math.floor(vim.o.columns * 0.9) -- 90% of the current editor's width
@@ -94,6 +129,10 @@ M.exec = function(options)
           end
 
           text = string.gsub(text, "%$register", register)
+        end
+
+        if string.find(text, "%$context") then
+          text = string.gsub(text, "%$context", get_full_context())
         end
 
         text = string.gsub(text, "%$text", content)
