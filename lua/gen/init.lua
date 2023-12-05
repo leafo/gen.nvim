@@ -45,6 +45,19 @@ local function get_context(win_id)
   return out
 end
 
+-- get the current set of changes for the file visible in win_id
+local function get_diff(win_id)
+  local out
+
+  vim.api.nvim_win_call(win_id, function()
+    local filename = vim.fn.expand('%')
+    out = vim.fn.system("git diff " .. vim.fn.shellescape(filename))
+  end)
+
+  return out
+end
+
+
 -- this gets the context for every file in the current set of visible tabs
 local function get_full_context()
   local contexts = {}
@@ -89,6 +102,16 @@ end
 M.command = 'ollama run $model $prompt'
 M.model = 'mistral:instruct'
 
+
+local function substitute_variable(text, variable, value)
+  value = value or ""
+  -- prevent the replacement escape sequences from being processed
+  local escaped = string.gsub(value, "%%", "%%%%")
+  text = string.gsub(text, "%$" .. variable, escaped)
+  return text
+end
+
+
 M.exec = function(options)
     local opts = vim.tbl_deep_extend('force', {
         model = M.model,
@@ -132,7 +155,13 @@ M.exec = function(options)
         end
 
         if string.find(text, "%$context") then
-          text = string.gsub(text, "%$context", get_full_context())
+          text = substitute_variable(text, "context", get_full_context())
+        end
+
+        if string.find(text, "%$diff") then
+          -- get current win_id for in neovim lua: 
+          local win_id = vim.api.nvim_get_current_win()
+          text = substitute_variable(text, "diff", get_diff(win_id))
         end
 
         text = string.gsub(text, "%$text", content)
