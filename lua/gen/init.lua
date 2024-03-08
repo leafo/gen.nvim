@@ -139,33 +139,38 @@ M.exec = function(options)
 
     local function substitute_placeholders(input)
         if not input then return end
-        local text = input
-        if string.find(text, "%$input") then
-            local answer = vim.fn.input("Prompt: ")
-            text = string.gsub(text, "%$input", answer)
-        end
 
-        if string.find(text, "%$register") then
-          local register = vim.fn.getreg('"')
-          if not register or register:match("^%s*$") then
-            error("Prompt uses $register but yank register is empty")
+        text = input:gsub("%$([%w_]+)", function(var)
+          if var == "filetype" then
+            return vim.bo.filetype
           end
 
-          text = string.gsub(text, "%$register", register)
-        end
+          if var == "text" then
+            return content
+          end
 
-        if string.find(text, "%$context") then
-          text = substitute_variable(text, "context", get_full_context())
-        end
+          if var == "input" then
+            local answer = vim.fn.input("Prompt: ")
+            return answer
+          end
 
-        if string.find(text, "%$diff") then
-          -- get current win_id for in neovim lua: 
-          local win_id = vim.api.nvim_get_current_win()
-          text = substitute_variable(text, "diff", get_diff(win_id))
-        end
+          if var == "register" then
+            local register = vim.fn.getreg('"')
+            if not register or register:match("^%s*$") then
+              error("Prompt uses $register but yank register is empty")
+            end
+            return register
+          end
 
-        text = string.gsub(text, "%$text", content)
-        text = string.gsub(text, "%$filetype", vim.bo.filetype)
+          if var == "context" then
+            return get_full_context()
+          end
+
+          if var == "diff" then
+            return get_diff()
+          end
+        end)
+
         return text
     end
 
@@ -181,7 +186,7 @@ M.exec = function(options)
     prompt = vim.fn.shellescape(substitute_placeholders(prompt))
     local extractor = substitute_placeholders(opts.extract)
     local cmd = opts.command
-    cmd = string.gsub(cmd, "%$prompt", prompt)
+    cmd = substitute_variable(cmd, "prompt", prompt)
     cmd = string.gsub(cmd, "%$model", opts.model)
     if result_buffer then vim.cmd('bd' .. result_buffer) end
     local win_opts = get_window_options()
