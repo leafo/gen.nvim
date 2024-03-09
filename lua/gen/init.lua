@@ -2,6 +2,7 @@ local prompts = require('gen.prompts')
 local M = {}
 
 local curr_buffer = nil
+local result_buffer = nil
 
 local last_prompt = nil
 local last_response = nil
@@ -200,7 +201,7 @@ M.exec = function(options)
     local function substitute_placeholders(input)
         if not input then return end
 
-        text = input:gsub("%$([%w_]+)", function(var)
+        local text = input:gsub("%$([%w_]+)", function(var)
           if var == "filetype" then
             return vim.bo.filetype
           end
@@ -305,7 +306,7 @@ M.exec = function(options)
 end
 
 M.prompts = prompts
-function select_prompt(cb)
+local function select_prompt(cb)
     local promptKeys = {}
     for key, _ in pairs(M.prompts) do table.insert(promptKeys, key) end
     table.sort(promptKeys)
@@ -330,11 +331,11 @@ vim.api.nvim_create_user_command('Gen', function(arg)
             print("Invalid prompt '" .. arg.args .. "'")
             return
         end
-        p = vim.tbl_deep_extend('force', {mode = mode}, prompt)
+        local p = vim.tbl_deep_extend('force', {mode = mode}, prompt)
         return M.exec(p)
     end
     select_prompt(function(item)
-        p = vim.tbl_deep_extend('force', {mode = mode}, M.prompts[item])
+        local p = vim.tbl_deep_extend('force', {mode = mode}, M.prompts[item])
         M.exec(p)
     end)
 
@@ -355,7 +356,7 @@ end, {
 
 vim.api.nvim_create_user_command('GenLastPrompt', function(arg)
   local float_buf = vim.api.nvim_create_buf(false, true)
-  local float_win = vim.api.nvim_open_win(float_buf, true, get_window_options())
+  vim.api.nvim_open_win(float_buf, true, get_window_options())
 
   local prompt_lines = last_prompt and vim.split(last_prompt, '\n', true) or {"No last prompt available"}
   vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, prompt_lines)
@@ -363,7 +364,7 @@ end, {})
 
 vim.api.nvim_create_user_command('GenLastResponse', function(arg)
   local float_buf = vim.api.nvim_create_buf(false, true)
-  local float_win = vim.api.nvim_open_win(float_buf, true, get_window_options())
+  vim.api.nvim_open_win(float_buf, true, get_window_options())
 
   local response_lines = last_response and vim.split(last_response, '\n', true) or {"No last response available"}
   vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, response_lines)
