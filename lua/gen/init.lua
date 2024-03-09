@@ -60,7 +60,6 @@ local function get_diff(win_id)
   return out
 end
 
-
 -- this gets the context for every file in the current set of visible tabs
 local function get_full_context()
   local contexts = {}
@@ -70,6 +69,30 @@ local function get_full_context()
   return table.concat(contexts, '\n'), #contexts
 end
 
+-- get the currently selected text (from visual selection)
+-- if there is no sellection, return ""
+local function get_selection(mode)
+  -- Note: that user commands will always run in normal, so we record if a
+  -- selection came in with the command and override the mode to
+  mode = mode or vim.fn.mode()
+
+  if mode == 'v' or mode == 'V' then
+    start_pos = vim.fn.getpos("'<")
+    end_pos = vim.fn.getpos("'>")
+    end_pos[3] = vim.fn.col("'>") -- in case of `V`, it would be maxcol instead
+  else
+    local cursor = vim.fn.getpos('.')
+    start_pos = cursor
+    end_pos = start_pos
+  end
+
+  return table.concat(vim.api.nvim_buf_get_text(curr_buffer,
+    start_pos[2] - 1,
+    start_pos[3] - 1,
+    end_pos[2] - 1,
+    end_pos[3] - 1, {}),
+    '\n')
+end
 local function get_window_options()
 
     local width = math.floor(vim.o.columns * 0.9) -- 90% of the current editor's width
@@ -122,23 +145,6 @@ M.exec = function(options)
     }, options)
     pcall(io.popen, 'ollama serve > /dev/null 2>&1 &')
     curr_buffer = vim.fn.bufnr('%')
-    local mode = opts.mode or vim.fn.mode()
-    if mode == 'v' or mode == 'V' then
-        start_pos = vim.fn.getpos("'<")
-        end_pos = vim.fn.getpos("'>")
-        end_pos[3] = vim.fn.col("'>") -- in case of `V`, it would be maxcol instead
-    else
-        local cursor = vim.fn.getpos('.')
-        start_pos = cursor
-        end_pos = start_pos
-    end
-
-    local content = table.concat(vim.api.nvim_buf_get_text(curr_buffer,
-                                                           start_pos[2] - 1,
-                                                           start_pos[3] - 1,
-                                                           end_pos[2] - 1,
-                                                           end_pos[3] - 1, {}),
-                                 '\n')
 
     local function substitute_placeholders(input)
         if not input then return end
@@ -148,8 +154,8 @@ M.exec = function(options)
             return vim.bo.filetype
           end
 
-          if var == "text" then
-            return content
+          if var == "text" or var == "selection" then
+            return get_selection(opts.mode)
           end
 
           if var == "input" then
@@ -181,7 +187,10 @@ M.exec = function(options)
 
     if type(prompt) == "function" then
       prompt = prompt({
-        content = content,
+        opts = opts,
+        get_selection = function()
+          return get_selection(opts.mode)
+        end,
         filetype = vim.bo.filetype,
       })
     end
