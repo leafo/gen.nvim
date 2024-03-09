@@ -78,7 +78,52 @@ local function get_selection(start_pos, end_pos)
     '\n')
 end
 
-local function get_insertion_context()
+-- this fetches num-lines around where the cursor currently is, and inserts a
+-- <<CURSOR>> sigil at location of cursor
+-- num_lines: the number of lines to fetch above and below the cursor
+-- sigil: the string to insert at the cursor location
+-- show_file_header: display filename:start_line-end_line at the top of the context string
+local function get_insertion_context(num_lines, sigil, show_file_header)
+  num_lines = num_lines or 5
+  sigil = sigil or "<<CURSOR>>"
+
+  local current_line = vim.api.nvim_win_get_cursor(0)[1]
+  local total_lines = vim.api.nvim_buf_line_count(0)
+
+  local start_line = math.max(1, current_line - num_lines)
+  local end_line = math.min(total_lines, current_line + num_lines)
+
+  local before = vim.api.nvim_buf_get_lines(0, start_line-1, current_line - 1, false)
+  local after = vim.api.nvim_buf_get_lines(0, current_line, end_line, false)
+
+  -- get the current line in two parts split by the cursor position
+  local cursor_pos = vim.api.nvim_win_get_cursor(0)[2]
+  local current_line_text = vim.api.nvim_buf_get_lines(0, current_line-1, current_line, false)[1]
+
+  local before_cursor = string.sub(current_line_text, 1, cursor_pos)
+  local after_cursor = string.sub(current_line_text, cursor_pos + 1)
+
+  -- join the lines with the cursor inserted in the middle
+  local lines = {}
+
+  if show_file_header then
+    -- display the filename:start_line-end_line
+    local filename = vim.fn.expand('%')
+    local header = string.format("%s:%d-%d", filename, start_line, end_line)
+    table.insert(lines, header)
+  end
+
+  for i, line in ipairs(before) do
+    table.insert(lines, line)
+  end
+
+  table.insert(lines, before_cursor .. sigil .. after_cursor)
+
+  for i, line in ipairs(after) do
+    table.insert(lines, line)
+  end
+
+  return table.concat(lines, "\n")
 end
 
 local function get_window_options()
@@ -179,6 +224,10 @@ M.exec = function(options)
 
           if var == "context" then
             return get_full_context()
+          end
+
+          if var == "insertion_context" then
+            return get_insertion_context(5, "<<CURSOR>>", true)
           end
 
           if var == "diff" then
