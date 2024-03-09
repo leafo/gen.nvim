@@ -5,6 +5,9 @@ local curr_buffer = nil
 local start_pos = nil
 local end_pos = nil
 
+local last_prompt = nil
+local last_response = nil
+
 local function trim_table(tbl)
     local function is_whitespace(str) return str:match("^%s*$") ~= nil end
 
@@ -183,7 +186,10 @@ M.exec = function(options)
       })
     end
 
-    prompt = vim.fn.shellescape(substitute_placeholders(prompt))
+    prompt = substitute_placeholders(prompt)
+    last_prompt = prompt
+    prompt = vim.fn.shellescape(last_prompt)
+
     local extractor = substitute_placeholders(opts.extract)
     local cmd = opts.command
     cmd = substitute_variable(cmd, "prompt", prompt)
@@ -200,6 +206,8 @@ M.exec = function(options)
     local job_id = vim.fn.jobstart(cmd, {
         on_stdout = function(_, data, _)
             result_string = result_string .. table.concat(data, '\n')
+            last_response = result_string
+
             lines = vim.split(result_string, '\n', true)
             vim.api.nvim_buf_set_lines(result_buffer, 0, -1, false, lines)
             vim.api.nvim_win_call(float_win, function()
@@ -280,5 +288,21 @@ end, {
     return promptKeys
   end
 })
+
+vim.api.nvim_create_user_command('GenLastPrompt', function(arg)
+  local float_buf = vim.api.nvim_create_buf(false, true)
+  local float_win = vim.api.nvim_open_win(float_buf, true, get_window_options())
+
+  local prompt_lines = last_prompt and vim.split(last_prompt, '\n', true) or {"No last prompt available"}
+  vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, prompt_lines)
+end, {})
+
+vim.api.nvim_create_user_command('GenLastResponse', function(arg)
+  local float_buf = vim.api.nvim_create_buf(false, true)
+  local float_win = vim.api.nvim_open_win(float_buf, true, get_window_options())
+
+  local response_lines = last_response and vim.split(last_response, '\n', true) or {"No last response available"}
+  vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, response_lines)
+end, {})
 
 return M
