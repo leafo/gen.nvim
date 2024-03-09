@@ -211,7 +211,7 @@ M.exec = function(options)
           end
 
           if var == "input" then
-            local answer = vim.fn.input("Prompt: ")
+            local answer = vim.fn.input(opts.input_prompt or "Prompt: ")
             return answer
           end
 
@@ -245,7 +245,7 @@ M.exec = function(options)
       prompt = prompt({
         opts = opts,
         get_selection = function()
-          return get_selection(opts.mode)
+          return get_selection(start_pos, end_pos)
         end,
         filetype = vim.bo.filetype,
       })
