@@ -41,7 +41,7 @@ local function get_context(win_id)
     local visible_lines = vim.api.nvim_buf_get_lines(0, first_visible - 1, last_visible, false)
     local header = string.format("%s:%d-%d", filename, first_visible, last_visible)
 
-    out = header .. "\n" .. table.concat(visible_lines, '\n')
+    out = "START " .. header .. "\n" .. table.concat(visible_lines, '\n') .. "\nEND " .. header
   end)
 
   return out
