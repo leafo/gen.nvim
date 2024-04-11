@@ -289,7 +289,9 @@ M.exec = function(options)
                     end
                     lines = vim.split(extracted, '\n', true)
                 end
-                lines = trim_table(lines)
+                if opts.trim_response ~= false then
+                  lines = trim_table(lines)
+                end
                 vim.api.nvim_buf_set_text(curr_buffer, start_pos[2] - 1,
                                           start_pos[3] - 1, end_pos[2] - 1,
                                           end_pos[3] - 1, lines)
