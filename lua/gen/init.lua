@@ -212,6 +212,10 @@ M.exec = function(options)
             return vim.bo.filetype
           end
 
+          if var == "filename" then
+            return vim.fn.expand('%')
+          end
+
           if var == "text" or var == "selection" then
             return get_selection(start_pos, end_pos)
           end
