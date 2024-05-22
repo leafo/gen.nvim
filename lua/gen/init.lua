@@ -21,6 +21,8 @@ local function trim_table(tbl)
     return tbl
 end
 
+local CONTEXT_EXTEND = 80 -- additional lines to include in the context
+
 -- This generates a context string of the currently visible text in the
 -- specified win_id (or the current window if none is specified)
 -- Format:
@@ -35,13 +37,17 @@ local function get_context(win_id)
 
   vim.api.nvim_win_call(win_id, function()
     local filename = vim.fn.expand('%')
-    local first_visible = vim.fn.line('w0')
-    local last_visible = vim.fn.line('w$')
+    local first_visible = math.max(1, vim.fn.line('w0') - CONTEXT_EXTEND)
+    local last_visible = math.min(vim.fn.line('$'), vim.fn.line('w$') + CONTEXT_EXTEND)
+
+    if first_visible < 20 then
+      first_visible = 1
+    end
 
     local visible_lines = vim.api.nvim_buf_get_lines(0, first_visible - 1, last_visible, false)
     local header = string.format("%s:%d-%d", filename, first_visible, last_visible)
 
-    out = "START " .. header .. "\n" .. table.concat(visible_lines, '\n') .. "\nEND " .. header
+    out = "START " .. header .. "\n```\n" .. table.concat(visible_lines, '\n') .. "\n```\nEND " .. header
   end)
 
   return out
